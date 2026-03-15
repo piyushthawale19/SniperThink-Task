@@ -1,11 +1,12 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const { Pool } = require("pg");
+require("dotenv").config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const initDB = async () => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -40,10 +41,12 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    return true;
   } catch (error) {
-    console.error('Error init db:', error);
+    console.error("Error init db:", error);
+    return false;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 module.exports = { pool, initDB };

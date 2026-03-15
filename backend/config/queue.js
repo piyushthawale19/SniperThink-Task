@@ -1,11 +1,25 @@
-const { Queue, QueueEvents } = require('bullmq');
-require('dotenv').config();
+const { Queue } = require("bullmq");
+require("dotenv").config();
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-};
-const fileQueue = new Queue('fileProcessing', { connection });
-const queueEvents = new QueueEvents('fileProcessing', { connection });
+const redisUrl = process.env.REDIS_URL;
+const redisHost = process.env.REDIS_HOST;
+const redisPort = process.env.REDIS_PORT;
 
-module.exports = { fileQueue, connection, queueEvents };
+const hasRedisConfig = Boolean(redisUrl || redisHost);
+
+const connection = hasRedisConfig
+  ? redisUrl
+    ? { url: redisUrl, lazyConnect: true, maxRetriesPerRequest: null }
+    : {
+        host: redisHost,
+        port: parseInt(redisPort || "6379", 10),
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+      }
+  : null;
+
+const fileQueue = hasRedisConfig
+  ? new Queue("fileProcessing", { connection })
+  : null;
+
+module.exports = { fileQueue, connection };
