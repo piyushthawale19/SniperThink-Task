@@ -1,8 +1,19 @@
+require("dotenv").config();
+
 const { Worker } = require("bullmq");
 const { connection } = require("../config/queue");
-const { pool } = require("../config/db");
-const fs = require("fs");
-const pdfParse = require("pdf-parse");
+const {
+  MAX_JOB_ATTEMPTS,
+  markJobCompleted,
+  markJobFailed,
+  markJobPendingForRetry,
+  markJobProcessing,
+  updateJobProgress,
+} = require("../services/jobService");
+const {
+  analyzeText,
+  extractText,
+} = require("../services/fileProcessingService");
 
 if (!connection) {
   console.error(
@@ -11,55 +22,76 @@ if (!connection) {
   process.exit(1);
 }
 
-const extractText = async (filePath, type) => {
-  if (type === "application/pdf")
-    return (await pdfParse(fs.readFileSync(filePath))).text;
-  if (type === "text/plain") return fs.readFileSync(filePath, "utf8");
-  throw new Error("Unsupported");
+const workerConcurrency = Math.max(
+  parseInt(process.env.WORKER_CONCURRENCY || "5", 10),
+  1,
+);
+
+const syncProgress = async (job, progress) => {
+  await job.updateProgress(progress);
+  await updateJobProgress(job.id, progress);
 };
 
-const processContent = (text) => {
-  const words = text.match(/\b\w+\b/g) || [];
-  const pCount = text.split(/\n\s*\n/).filter((p) => p.trim()).length;
-  const freq = {};
-  words.forEach((w) => {
-    const lw = w.toLowerCase();
-    if (lw.length > 3) freq[lw] = (freq[lw] || 0) + 1;
-  });
-  const top = Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map((x) => x[0]);
-  return { wordCount: words.length, paragraphCount: pCount, topKeywords: top };
-};
-
-new Worker(
+const worker = new Worker(
   "fileProcessing",
   async (job) => {
     const { filePath, mimetype } = job.data;
-    await pool.query(
-      "UPDATE jobs SET status = 'processing', progress = 0 WHERE id = $1",
-      [job.id],
-    );
-    try {
-      const text = await extractText(filePath, mimetype);
-      await job.updateProgress(50);
-      await pool.query("UPDATE jobs SET progress = 50 WHERE id = $1", [job.id]);
+    await markJobProcessing(job.id);
+    await syncProgress(job, 10);
 
-      const result = processContent(text);
-      await job.updateProgress(100);
-      await pool.query(
-        "UPDATE jobs SET status = 'completed', progress = 100, result = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-        [JSON.stringify(result), job.id],
-      );
-      return result;
-    } catch (err) {
-      await pool.query(
-        "UPDATE jobs SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-        [job.id],
-      );
-      throw err;
-    }
+    const text = await extractText(filePath, mimetype);
+    await syncProgress(job, 55);
+
+    const result = analyzeText(text);
+    await syncProgress(job, 90);
+
+    return result;
   },
-  { connection, concurrency: 5 },
+  { connection, concurrency: workerConcurrency },
 );
+
+worker.on("completed", async (job, result) => {
+  if (!job) {
+    return;
+  }
+
+  try {
+    await markJobCompleted(job.id, result, job.attemptsMade);
+  } catch (error) {
+    console.error(`Failed to persist completion for job ${job.id}:`, error);
+  }
+});
+
+worker.on("failed", async (job, error) => {
+  if (!job) {
+    return;
+  }
+
+  const attemptLimit = job.opts.attempts || MAX_JOB_ATTEMPTS;
+  const errorMessage = error.message || "Job processing failed";
+
+  try {
+    if (job.attemptsMade < attemptLimit) {
+      await markJobPendingForRetry(job.id, job.attemptsMade, errorMessage);
+      return;
+    }
+
+    await markJobFailed(job.id, errorMessage, job.attemptsMade);
+  } catch (persistError) {
+    console.error(`Failed to persist failure for job ${job.id}:`, persistError);
+  }
+});
+
+worker.on("error", (error) => {
+  console.error("Worker error:", error);
+});
+
+process.on("SIGINT", async () => {
+  await worker.close();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  await worker.close();
+  process.exit(0);
+});

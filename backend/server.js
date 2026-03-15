@@ -33,12 +33,15 @@ app.use(express.json());
 app.use("/api", routes);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, async () => {
+const startServer = async () => {
   const dbReady = await initDB();
   if (!dbReady) {
-    console.warn(
-      "Database initialization failed. Check DATABASE_URL/PG* environment variables.",
-    );
+    process.exit(1);
   }
-  console.log(`Server running on port ${PORT}`);
-});
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();

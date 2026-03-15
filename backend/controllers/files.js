@@ -1,31 +1,30 @@
-const { pool } = require("../config/db");
-const { getFileQueue } = require("../config/queue");
+const { createUploadJob } = require("../services/jobService");
 
 exports.uploadFile = async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file" });
-  const fileQueue = getFileQueue();
-  if (!fileQueue)
-    return res
-      .status(503)
-      .json({ message: "File processing queue is not configured" });
-  const { filename, originalname, mimetype, size, path: filePath } = req.file;
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
   try {
-    const result = await pool.query(
-      "INSERT INTO files (user_id, filename, original_name, mimetype, size, path) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-      [req.user.id, filename, originalname, mimetype, size, filePath],
-    );
-    const fileId = result.rows[0].id;
-    const job = await fileQueue.add(
-      "processFile",
-      { fileId, filePath, mimetype },
-      { attempts: 3 },
-    );
-    await pool.query(
-      "INSERT INTO jobs (id, file_id, status) VALUES ($1, $2, $3)",
-      [job.id, fileId, "pending"],
-    );
-    res.status(202).json({ fileId, jobId: job.id });
+    const { fileId, jobId } = await createUploadJob({
+      userId: req.user.id,
+      file: req.file,
+    });
+
+    return res.status(202).json({
+      fileId,
+      jobId,
+      status: "pending",
+      progress: 0,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    if (err.code === "QUEUE_NOT_CONFIGURED") {
+      return res
+        .status(503)
+        .json({ message: "File processing queue is not configured" });
+    }
+
+    console.error("File upload failed:", err);
+    return res.status(500).json({ message: "Unable to create processing job" });
   }
 };

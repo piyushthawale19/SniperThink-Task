@@ -1,0 +1,54 @@
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE files (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  filename VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  mimetype VARCHAR(100) NOT NULL,
+  size INTEGER NOT NULL,
+  file_path TEXT NOT NULL,
+  path TEXT,
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE jobs (
+  id VARCHAR(255) PRIMARY KEY,
+  file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  result JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE results (
+  id SERIAL PRIMARY KEY,
+  job_id VARCHAR(255) UNIQUE NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  word_count INTEGER NOT NULL,
+  paragraph_count INTEGER NOT NULL,
+  keywords JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE leads (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  selected_step VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_files_user_id ON files(user_id);
+CREATE INDEX idx_jobs_file_id ON jobs(file_id);
+CREATE INDEX idx_jobs_status ON jobs(status);
+CREATE INDEX idx_results_job_id ON results(job_id);

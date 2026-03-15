@@ -1,41 +1,80 @@
 # SniperThink Developer Assignment
 
-Full-stack distributed file processing architecture with a modern, scroll-storytelling React frontend.
+Full-stack application with a React frontend and a backend distributed file processing system built on Express, PostgreSQL, Redis, and BullMQ.
 
-## Architecture & Choices
+## Backend Status
 
-- **Frontend**: React, Vite, Framer Motion, Intersection Observer. The animation architecture uses Framer Motion's physics-based scroll observer to efficiently tie scroll intent to UI progression without redundant and janky re-renders. Component elements use `whileInView` with negative margin offsets for precise entry animations that trigger organically as the user reads.
-- **Backend Stack**: Node.js, Express, PostgreSQL, Redis, BullMQ.
-- **Queue System**: A message queue (BullMQ + Redis) handles file processing asynchronously. Instead of blocking the single-threaded Node.js event loop while extracting heavy PDF texts or processing data strings, we offload this to dedicated worker instances. This keeps the API responding with low latency and scales gracefully because we can simply boot up more workers as demand spikes.
-- **Worker Concurrency**: The `BullMQ` worker processes tasks currently tuned with `concurrency: 5`. This allows one Node worker to safely run 5 asynchronous tasks (waiting on I/O or DB) in parallel. It handles deduplication natively via job ids, and will intelligently retry jobs up to 3 times with exponential backoff if failure occurs.
+The backend now covers the assignment requirements for Part 2:
 
-## Getting Started
+- PDF and TXT upload support up to 10 MB
+- Persistent file, job, and result records in PostgreSQL
+- Redis-backed asynchronous job queue with BullMQ
+- Concurrent worker processing with retry support
+- Job status tracking with progress updates
+- Processed result retrieval with word count, paragraph count, and top keywords
 
-### Prerequisites
+## Backend Architecture
 
-- Redis (local or remote)
-- PostgreSQL (local or remote)
+- API server: Express handles authentication, upload requests, job status, and result retrieval.
+- Storage: uploaded files are stored on disk under `backend/uploads`.
+- Database: PostgreSQL stores users, files, jobs, leads, and results.
+- Queue: BullMQ schedules background processing jobs on Redis.
+- Workers: dedicated worker processes extract text from PDF/TXT files and persist analytics.
 
-### 1. Backend
+## Run Locally
+
+### 1. Start infrastructure
+
+```bash
+cd backend
+docker compose up -d
+```
+
+This starts PostgreSQL on `5432` and Redis on `6379` using [backend/docker-compose.yml](backend/docker-compose.yml).
+
+### 2. Configure the backend
+
+```bash
+cd backend
+copy .env.example .env
+```
+
+Set `DATABASE_URL`, `REDIS_URL` or `REDIS_HOST` and `REDIS_PORT`, and `JWT_SECRET` in `backend/.env`.
+
+### 3. Start the API server
 
 ```bash
 cd backend
 npm install
-cp .env.example .env # Set your keys here
 npm run dev
 ```
 
-### 2. Workers
+### 4. Start the worker
 
 ```bash
 cd backend
 npm run worker
 ```
 
-### 3. Frontend
+### 5. Start the frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+## Backend Deliverables
+
+- Database schema: [backend/schema.sql](backend/schema.sql)
+- API documentation: [backend/docs/api.md](backend/docs/api.md)
+- Worker and queue setup: [backend/docs/worker-queue.md](backend/docs/worker-queue.md)
+
+## Main Endpoints
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/files/upload`
+- `GET /api/jobs/:jobId`
+- `GET /api/jobs/:jobId/result`
+- `POST /api/interest`
