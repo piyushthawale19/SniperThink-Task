@@ -1,0 +1,132 @@
+.stepContainer {
+  display: flex;
+  align-items: center;
+  min-height: 80vh;
+  margin-bottom: 60px;
+}
+
+.content {
+  flex: 1;
+  padding-right: 80px;
+}
+
+.visual {
+  flex: 1.2;
+  perspective: 1000px;
+}
+
+.stepNumber {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin-bottom: 16px;
+  display: inline-block;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  font-size: 3rem;
+  margin-bottom: 24px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.description {
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1.7;
+}
+
+.card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 50px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Background gradient shift effect */
+.card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, var(--hover-color, rgba(255,255,255,0.05)) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.card:hover::before {
+  opacity: 0.15;
+}
+
+.iconWrapper {
+  width: 90px;
+  height: 90px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: transform 0.4s ease;
+}
+
+.card:hover .iconWrapper {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.cardContent h3 {
+  font-size: 1.75rem;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+
+.skeleton {
+  height: 14px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 2s infinite;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+@keyframes skeletonLoading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 992px) {
+  .stepContainer {
+    flex-direction: column;
+    min-height: auto;
+    margin-bottom: 100px;
+  }
+  
+  .content {
+    padding-right: 0;
+    margin-bottom: 50px;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .visual {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .title {
+    font-size: 2.2rem;
+  }
+}
