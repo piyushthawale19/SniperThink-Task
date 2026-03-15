@@ -1,6 +1,6 @@
 # Backend API Documentation
 
-Base URL: `http://localhost:4000/api`
+Base URL: `https://sniperthink-task-7bi9.onrender.com/api`
 
 ## Authentication
 
