@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
+    "build": "echo Backend build step complete",
     "start": "node server.js",
     "dev": "node server.js",
     "worker": "node workers/processor.js"
