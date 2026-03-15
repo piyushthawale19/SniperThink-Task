@@ -3,7 +3,25 @@ require("dotenv").config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+const isInvalidDatabaseUrl = () => {
+  const url = (process.env.DATABASE_URL || "").trim();
+  if (!url) return true;
+  return (
+    url.includes("<") ||
+    url.includes(">") ||
+    url.toLowerCase().includes("@host") ||
+    url.toLowerCase().includes("<host>")
+  );
+};
+
 const initDB = async () => {
+  if (isInvalidDatabaseUrl()) {
+    console.warn(
+      "DATABASE_URL is missing or invalid. Provide a real Postgres connection string.",
+    );
+    return false;
+  }
+
   let client;
   try {
     client = await pool.connect();

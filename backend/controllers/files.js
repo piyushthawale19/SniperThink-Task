@@ -1,8 +1,9 @@
 const { pool } = require("../config/db");
-const { fileQueue } = require("../config/queue");
+const { getFileQueue } = require("../config/queue");
 
 exports.uploadFile = async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file" });
+  const fileQueue = getFileQueue();
   if (!fileQueue)
     return res
       .status(503)
